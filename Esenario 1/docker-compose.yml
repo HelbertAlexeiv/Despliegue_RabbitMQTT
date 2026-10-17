@@ -1,0 +1,97 @@
+services:
+  rabbitmq:
+    image: rabbitmq:4.3-management
+    container_name: rabbitmq
+    ports: 
+    - "5672:5672"
+    - "15672:15672"
+    environment:
+      RABBITMQ_DEFAULT_USER: admin
+      RABBITMQ_DEFAULT_PASS: admin123
+    healthcheck:
+      test: ["CMD","rabbitmq-diagnostics","-q", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+
+  producer-python:
+    build: ./producers/python
+    environment:
+      RABBIT_HOST: rabbitmq
+      RABBIT_USER: admin
+      RABBIT_PASS: admin123
+    depends_on:
+      rabbitmq:
+        condition: service_healthy
+
+  consumer-python:
+    build: ./consumers/python
+    environment:
+      RABBIT_HOST: rabbitmq
+      RABBIT_USER: admin
+      RABBIT_PASS: admin123
+    depends_on:
+      rabbitmq:
+        condition: service_healthy
+
+  producer-node:
+    build: ./producers/node
+    environment:
+      RABBIT_HOST: rabbitmq
+      RABBIT_USER: admin
+      RABBIT_PASS: admin123
+    depends_on:
+      rabbitmq:
+        condition: service_healthy
+
+  consumer-node:
+    build: ./consumers/node
+    environment:
+      RABBIT_HOST: rabbitmq
+      RABBIT_USER: admin
+      RABBIT_PASS: admin123
+    depends_on:
+      rabbitmq:
+        condition: service_healthy
+
+  producer-go:
+    build: ./producers/go
+    environment:
+      RABBIT_HOST: rabbitmq
+      RABBIT_USER: admin
+      RABBIT_PASS: admin123
+    depends_on:
+      rabbitmq:
+        condition: service_healthy
+
+  consumer-go:
+    build: ./consumers/go
+    environment:
+      RABBIT_HOST: rabbitmq
+      RABBIT_USER: admin
+      RABBIT_PASS: admin123
+    depends_on:
+      rabbitmq:
+        condition: service_healthy
+    
+  producer-java:
+    build: ./producers/java
+    environment:
+      RABBIT_HOST: rabbitmq
+      RABBIT_USER: admin
+      RABBIT_PASS: admin123
+    depends_on:
+      rabbitmq:
+        condition: service_healthy
+
+  consumer-java:
+    build: ./consumers/java
+    environment:
+      RABBIT_HOST: rabbitmq
+      RABBIT_USER: admin
+      RABBIT_PASS: admin123
+    depends_on:
+      rabbitmq:
+        condition: service_healthy
+
+
