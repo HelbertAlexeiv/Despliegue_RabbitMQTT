@@ -1,0 +1,43 @@
+services:
+  producer-python:
+    build: ./producers/python
+    restart: unless-stopped
+    environment: &rabbitmq-environment
+      RABBIT_HOST: ${RABBIT_HOST:?Set RABBIT_HOST in .env}
+      RABBIT_USER: ${RABBIT_USER:?Set RABBIT_USER in .env}
+      RABBIT_PASS: ${RABBIT_PASS:?Set RABBIT_PASS in .env}
+
+  consumer-python:
+    build: ./consumers/python
+    restart: unless-stopped
+    environment: *rabbitmq-environment
+
+  producer-node:
+    build: ./producers/node
+    restart: unless-stopped
+    environment: *rabbitmq-environment
+
+  consumer-node:
+    build: ./consumers/node
+    restart: unless-stopped
+    environment: *rabbitmq-environment
+
+  producer-go:
+    build: ./producers/go
+    restart: unless-stopped
+    environment: *rabbitmq-environment
+
+  consumer-go:
+    build: ./consumers/go
+    restart: unless-stopped
+    environment: *rabbitmq-environment
+
+  producer-java:
+    build: ./producers/java
+    restart: unless-stopped
+    environment: *rabbitmq-environment
+
+  consumer-java:
+    build: ./consumers/java
+    restart: unless-stopped
+    environment: *rabbitmq-environment

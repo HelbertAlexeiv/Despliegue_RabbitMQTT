@@ -223,7 +223,7 @@ Si RabbitMQ aún no está listo, cada servicio reintenta la conexión cada 3 seg
 
 ## 🔭 Escenarios siguientes
 
-- **Escenario 2 – Distribuido en 2 nodos:** Nodo 1 con productores y consumidores, Nodo 2 con RabbitMQ (2 archivos `docker-compose.yml`)
+- **Escenario 2 – Distribuido en 2 nodos:** Nodo 1 con productores y consumidores, Nodo 2 con RabbitMQ (ver [`Escenario 2/README.md`](Escenario%202/README.md))
 - **Escenario 3 – Distribuido en 3 nodos:** Nodos 1 y 2 con conjuntos de productores y consumidores, Nodo 3 con RabbitMQ (3 archivos `docker-compose.yml`)
 
 En ambos casos, `RABBIT_HOST` pasará a ser la IP del nodo del broker y el puerto `5672` de ese nodo deberá estar accesible.
