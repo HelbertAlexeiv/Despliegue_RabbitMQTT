@@ -195,6 +195,252 @@ Al volver, el consumidor recibe de golpe los mensajes acumulados.
 
 ---
 
+## 🧭 Escenario 2 – Distribuido en dos nodos
+
+El escenario 2 conserva la lógica de publicación/suscripción del escenario 1,
+pero separa el broker de las aplicaciones en dos máquinas virtuales conectadas
+a la misma red privada:
+
+- **Nodo de aplicaciones:** ejecuta los cuatro productores y los cuatro consumidores.
+- **Nodo broker:** ejecuta únicamente RabbitMQ.
+
+```text
+ Nodo de aplicaciones                         Nodo broker
+┌───────────────────────────────┐             ┌────────────────────────┐
+│ producer-python               │             │ RabbitMQ               │
+│ producer-node                 │── TCP 5672 ─▶│ anime_exchange          │
+│ producer-go                   │             │ (topic)                │
+│ producer-java                 │             └────────────────────────┘
+│ consumer-python               │
+│ consumer-node                 │
+│ consumer-go                   │
+│ consumer-java                 │
+└───────────────────────────────┘
+```
+
+El nodo de aplicaciones se conecta al broker mediante la variable
+`RABBIT_HOST`. Por ejemplo:
+
+```text
+Nodo aplicaciones: 192.168.56.10
+Nodo broker:       192.168.56.20
+RABBIT_HOST=192.168.56.20
+```
+
+### Arquitectura
+
+- **Patrón:** `Publish/Subscribe` con el exchange `anime_exchange`.
+- **Tipo de exchange:** `topic`.
+- **Transporte:** AMQP sobre TCP.
+- **Puerto del broker:** `5672`.
+- **Colas:** `cola_python`, `cola_node`, `cola_go` y `cola_java`.
+- **Red:** una red privada compartida entre las dos máquinas virtuales.
+
+### Servicios
+
+Los productores y consumidores son los mismos del escenario 1:
+
+| Nodo | Servicios |
+|---|---|
+| Aplicaciones | `producer-python`, `producer-node`, `producer-go`, `producer-java` |
+| Aplicaciones | `consumer-python`, `consumer-node`, `consumer-go`, `consumer-java` |
+| Broker | `rabbitmq` |
+
+Las routing keys y bindings no cambian:
+
+| Productor | Routing key | Consumidores |
+|---|---|---|
+| Python | `anime.isekai` | Python, Node.js y Java |
+| Node.js | `anime.aventura` | Python y Node.js |
+| Go | `anime.accion` | Node.js y Go |
+| Java | `anime.romance` | Node.js, Go y Java |
+
+### Estructura del escenario
+
+```text
+Escenario 2/
+├── docker-compose.apps.yml       # nodo de aplicaciones
+├── docker-compose.broker.yml     # nodo RabbitMQ
+├── .env.example
+├── producers/
+│   ├── python/
+│   ├── node/
+│   ├── go/
+│   └── java/
+└── consumers/
+    ├── python/
+    ├── node/
+    ├── go/
+    └── java/
+```
+
+### Requisitos
+
+- Dos máquinas virtuales con Linux.
+- Docker Engine y Docker Compose instalados en ambas máquinas.
+- Una red privada compartida entre las máquinas virtuales.
+- IPs fijas o reservadas para ambas máquinas.
+- Acceso a Internet durante la primera construcción de las imágenes.
+
+Se recomienda configurar un adaptador NAT para Internet
+
+### Configurar y levantar el nodo broker
+
+En la máquina virtual que ejecutará RabbitMQ:
+
+```bash
+cd "Escenario 2"
+cp .env.example .env
+```
+
+Edita `.env` y configura las credenciales:
+
+```dotenv
+RABBIT_USER=admin
+RABBIT_PASS=una-contrasena-fuerte
+```
+
+Valida y levanta RabbitMQ:
+
+```bash
+docker compose --env-file .env -f docker-compose.broker.yml config
+docker compose --env-file .env -f docker-compose.broker.yml up -d
+docker compose --env-file .env -f docker-compose.broker.yml ps
+```
+
+El archivo `docker-compose.broker.yml` crea el volumen persistente
+`rabbitmq_data`. No uses `down -v` salvo que quieras borrar el estado del
+broker.
+
+### Configurar y levantar el nodo de aplicaciones
+
+En la máquina virtual de aplicaciones:
+
+```bash
+cd "Escenario 2"
+cp .env.example .env
+```
+
+Edita `.env` con la IP privada del nodo broker y las mismas credenciales:
+
+```dotenv
+RABBIT_HOST=192.168.56.20
+RABBIT_USER=admin
+RABBIT_PASS=una-contrasena-fuerte
+```
+
+No uses `localhost` ni `rabbitmq` como `RABBIT_HOST`, porque RabbitMQ está en
+otra máquina virtual.
+
+Valida y construye los ocho servicios:
+
+```bash
+docker compose --env-file .env -f docker-compose.apps.yml config
+docker compose --env-file .env -f docker-compose.apps.yml up --build -d
+docker compose --env-file .env -f docker-compose.apps.yml ps
+```
+
+### Ver los mensajes
+
+Para observar todo el flujo:
+
+```bash
+docker compose --env-file .env -f docker-compose.apps.yml logs -f
+```
+
+Para observar únicamente los consumidores:
+
+```bash
+docker compose --env-file .env -f docker-compose.apps.yml logs -f \
+  consumer-python consumer-node consumer-go consumer-java
+```
+
+Antes de levantar las aplicaciones puedes probar la comunicación desde el nodo
+de aplicaciones:
+
+```bash
+ping 192.168.56.20
+nc -vz 192.168.56.20 5672
+```
+
+### Panel de administración
+
+El panel de RabbitMQ se publica en `127.0.0.1:15672` dentro del nodo broker.
+Para acceder desde Windows, crea un túnel SSH:
+
+```powershell
+ssh -L 15672:127.0.0.1:15672 usuario@192.168.56.20
+```
+
+Después abre <http://localhost:15672> e inicia sesión con las credenciales de
+`.env`.
+
+En el panel puedes observar:
+
+- `anime_exchange`, de tipo `topic`.
+- Las colas `cola_python`, `cola_node`, `cola_go` y `cola_java`.
+- Los bindings y sus routing keys.
+- Conexiones y tasas de publicación/consumo.
+- Mensajes `Ready` y `Unacked`.
+
+### Prueba de resiliencia
+
+Para demostrar que una cola continúa existiendo cuando su consumidor se
+detiene:
+
+```bash
+docker compose --env-file .env -f docker-compose.apps.yml stop consumer-go
+```
+
+Espera algunos segundos, observa `cola_go` en el panel y luego inicia el
+consumidor:
+
+```bash
+docker compose --env-file .env -f docker-compose.apps.yml start consumer-go
+docker compose --env-file .env -f docker-compose.apps.yml logs -f consumer-go
+```
+
+También puedes detener los productores sin apagar RabbitMQ:
+
+```bash
+docker compose --env-file .env -f docker-compose.apps.yml stop \
+  producer-python producer-node producer-go producer-java
+```
+
+Para reanudarlos:
+
+```bash
+docker compose --env-file .env -f docker-compose.apps.yml start \
+  producer-python producer-node producer-go producer-java
+```
+
+### Variables de entorno
+
+| Variable | Valor en el nodo de aplicaciones |
+|---|---|
+| `RABBIT_HOST` | IP privada o DNS del nodo broker |
+| `RABBIT_USER` | Debe coincidir con el broker |
+| `RABBIT_PASS` | Debe coincidir con el broker |
+
+El nodo broker utiliza `RABBIT_USER` y `RABBIT_PASS` para crear el usuario
+inicial. El archivo `.env` no debe subirse al repositorio.
+
+### Detener el escenario
+
+En el nodo de aplicaciones:
+
+```bash
+docker compose --env-file .env -f docker-compose.apps.yml down
+```
+
+En el nodo broker:
+
+```bash
+docker compose --env-file .env -f docker-compose.broker.yml down
+```
+
+---
+
 ## ⚙️ Variables de entorno
 
 Todos los productores y consumidores leen su conexión desde estas variables definidas en el `docker-compose.yml`:
