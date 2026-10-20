@@ -1,0 +1,23 @@
+services:
+  producer-python:
+    build: ./producers/python
+    restart: unless-stopped
+    environment: &rabbit-env
+      RABBIT_HOST: ${RABBIT_HOST:?Falta RABBIT_HOST}
+      RABBIT_USER: ${RABBIT_USER:?Falta RABBIT_USER}
+      RABBIT_PASS: ${RABBIT_PASS:?Falta RABBIT_PASS}
+
+  consumer-python:
+    build: ./consumers/python
+    restart: unless-stopped
+    environment: *rabbit-env
+
+  producer-node:
+    build: ./producers/node
+    restart: unless-stopped
+    environment: *rabbit-env
+
+  consumer-node:
+    build: ./consumers/node
+    restart: unless-stopped
+    environment: *rabbit-env

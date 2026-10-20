@@ -1,0 +1,23 @@
+services:
+  rabbitmq:
+    image: rabbitmq:3-management
+    hostname: rabbitmq
+    container_name: rabbitmq-nodo3
+    restart: unless-stopped
+    ports:
+      - "192.168.56.13:5672:5672"
+      - "192.168.56.13:15672:15672"
+    environment:
+      RABBITMQ_DEFAULT_USER: ${RABBIT_USER:?Falta RABBIT_USER}
+      RABBITMQ_DEFAULT_PASS: ${RABBIT_PASS:?Falta RABBIT_PASS}
+    volumes:
+      - rabbitmq-data:/var/lib/rabbitmq
+    healthcheck:
+      test: ["CMD", "rabbitmq-diagnostics", "-q", "ping"]
+      interval: 15s
+      timeout: 10s
+      retries: 10
+      start_period: 30s
+
+volumes:
+  rabbitmq-data:

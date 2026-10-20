@@ -1,0 +1,23 @@
+services:
+  producer-go:
+    build: ./producers/go
+    restart: unless-stopped
+    environment: &rabbit-env
+      RABBIT_HOST: ${RABBIT_HOST:?Falta RABBIT_HOST}
+      RABBIT_USER: ${RABBIT_USER:?Falta RABBIT_USER}
+      RABBIT_PASS: ${RABBIT_PASS:?Falta RABBIT_PASS}
+
+  consumer-go:
+    build: ./consumers/go
+    restart: unless-stopped
+    environment: *rabbit-env
+
+  producer-java:
+    build: ./producers/java
+    restart: unless-stopped
+    environment: *rabbit-env
+
+  consumer-java:
+    build: ./consumers/java
+    restart: unless-stopped
+    environment: *rabbit-env
